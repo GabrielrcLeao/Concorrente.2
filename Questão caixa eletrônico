@@ -1,0 +1,55 @@
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#define NUM_PESSOAS 5
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+int caixa_livre = 1;
+
+void *uso_caixa(void *thread_id) {
+  int tid = *((int *)thread_id);
+
+  pthread_mutex_lock(&mutex);
+  
+  while (!caixa_livre) {
+    printf("Pessoa %ld está esperando na fila.\n", tid);
+    pthread_cond_wait(&cond, &mutex);
+  }
+
+  caixa_livre = 0;
+  printf("Pessoa %ld está usando o caixa eletrônico.\n", tid);
+  pthread_mutex_unlock(&mutex);
+
+  sleep(rand() % 5);
+
+  pthread_mutex_lock(&mutex);
+  
+  caixa_livre = 1;
+  printf("Pessoa %ld terminou de usar o caixa eletrônico.\n", tid);
+  
+  pthread_cond_signal(&cond);
+  pthread_mutex_unlock(&mutex);
+
+  pthread_exit(NULL);
+}
+
+int main() {
+  pthread_t pessoas[NUM_PESSOAS];
+
+  for (int i = 0; i < NUM_PESSOAS; i++) {
+    int *pessoa_id = malloc(sizeof(int));
+    *pessoa_id = i + 1;
+    pthread_create(&pessoas[i], NULL, uso_caixa, pessoa_id);
+  }
+
+  for (int i = 0; i < NUM_PESSOAS; i++) {
+    pthread_join(pessoas[i], NULL);
+  }
+
+  pthread_mutex_destroy(&mutex);
+  pthread_cond_destroy(&cond);
+
+  return 0;
+}
